@@ -33,6 +33,7 @@ from models import resnet_cifar
 from models.head import BCLHead
 
 from losses.logitadjust import LogitAdjust
+from losses.dfl import DFL
 from losses.contrastive import BalSCL
 
 from utils import config, update_config, create_logger
@@ -120,7 +121,7 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
         block = None
         classifier1 = getattr(resnet_cifar, 'Classifier')(feat_in=config.feat_size, num_classes=config.num_classes)
         classifier2 = getattr(resnet_cifar, 'Classifier')(feat_in=config.feat_size, num_classes=config.num_classes)
-    
+
     elif config.dataset == 'imagenet' or config.dataset == 'ina2018':
         model = getattr(resnet, config.backbone)()
         block = None
@@ -279,9 +280,9 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
     optimizer = torch.optim.SGD(params, config.lr,
                                 momentum=config.momentum,
                                 weight_decay=config.weight_decay)
-    
+
     scaler = GradScaler()
-    
+
     for epoch in range(config.num_epochs):
         if config.distributed:
             train_sampler.set_epoch(epoch)
@@ -296,6 +297,8 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
             criterion = nn.CrossEntropyLoss(weight=None).cuda(config.gpu)
         elif config.loss_type == 'LA':
             criterion = LogitAdjust(cls_num_list=cls_num_list).cuda(config.gpu)
+        elif config.loss_type == 'DFL':
+            criterion = DFL().cuda(config.gpu)
         elif config.loss_type == 'BCL':
             criterion = {"lc": LogitAdjust(cls_num_list=cls_num_list).cuda(config.gpu),
                          "bcl": BalSCL(cls_num_list=cls_num_list).cuda(config.gpu)}
@@ -361,7 +364,7 @@ def train(train_loader, balance_loader, model, classifier1, classifier2, criteri
     back_masks = torch.Tensor([]).cuda(config.gpu)
 
     balance_loader_iter = iter(balance_loader)
-    
+
     end = time.time()
     for i, (input1, target1) in enumerate(train_loader):
         if i > end_steps:
@@ -373,7 +376,7 @@ def train(train_loader, balance_loader, model, classifier1, classifier2, criteri
         input2, target2 = next(balance_loader_iter)
         if config.loss_type == 'BCL':
             input2, _, _ = input2
-        
+
         input2 = input2[:input1.shape[0]]
         target2 = target2[:target1.shape[0]]
 
@@ -385,11 +388,11 @@ def train(train_loader, balance_loader, model, classifier1, classifier2, criteri
             target1 = target1.cuda(config.gpu, non_blocking=True)
             input2 = input2.cuda(config.gpu, non_blocking=True)
             target2 = target2.cuda(config.gpu, non_blocking=True)
-            
+
             if config.loss_type == 'BCL':
                 input1_r1 = input1_r1.cuda(config.gpu, non_blocking=True)
                 input1_r2 = input1_r2.cuda(config.gpu, non_blocking=True)
-        
+
         # separate background
         if config.csa:
             mask, logit = get_background_mask(model, block, classifier1, input1, target1, config)
@@ -425,7 +428,7 @@ def train(train_loader, balance_loader, model, classifier1, classifier2, criteri
                 #         feat2 = block(feat2)
                 # output2 = classifier2(feat2.detach())
                 # loss2 = F.cross_entropy(output2, target2)
-            
+
             if config.loss_type == 'BCL':
                 inputs = torch.cat([input1, input1_r1, input1_r2], dim=0)
                 batch_size = target1.shape[0]
@@ -464,7 +467,11 @@ def train(train_loader, balance_loader, model, classifier1, classifier2, criteri
                 else:
                     feat = model(input1)
                     output1 = classifier1(feat)
-                loss = criterion(output1, target1)
+                if config.loss_type == 'DFL':
+                    loss = criterion(output1, target1, epoch, config.num_epochs)
+                else:
+                    loss = criterion(output1, target1)
+                # loss = criterion(output1, target1)
 
             loss = loss + loss2
 
@@ -489,7 +496,7 @@ def train(train_loader, balance_loader, model, classifier1, classifier2, criteri
 
         if i % config.print_freq == 0:
             progress.display(i, logger)
-    
+
     if config.csa:
         logger.info('Fit num: {0}/{1}'.format(fit_num, tot_num))
 
@@ -574,7 +581,7 @@ def get_background_mask(model, block, classifier, input, target, config, mode='G
             weights = grad_map.mean(dim=(2, 3), keepdim=True)
             cam = (weights * feat_map).sum(dim=1, keepdim=True)
             cam = F.relu(cam, inplace=True)
-    
+
     def _normalize(x):
         x.sub_(x.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1))
         x.div_(x.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1))
@@ -599,7 +606,7 @@ class AccMeter:
 
         self.class_num = torch.zeros(config.num_classes).cuda(config.gpu)
         self.correct = torch.zeros(config.num_classes).cuda(config.gpu)
-        
+
         self.confidence = np.array([])
         self.pred_class = np.array([])
         self.true_class = np.array([])
@@ -607,7 +614,7 @@ class AccMeter:
     def update(self, output, target, is_prob=False):
         if not is_prob:
             output = torch.softmax(output, dim=1)
-        
+
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
         self.top1.update(acc1[0], target.size(0))
         self.top5.update(acc5[0], target.size(0))
@@ -693,7 +700,7 @@ def validate(val_loader, model, classifier1, classifier2, criterion, config, log
 
             acc1, acc5 = entry.top1.avg, entry.top5.avg
             head_acc, med_acc, tail_acc = entry.get_shot_acc()
-            
+
             # remember best acc@1
             is_best = acc1 > best_acc1[name]
             if is_best:
@@ -702,12 +709,12 @@ def validate(val_loader, model, classifier1, classifier2, criterion, config, log
                     is_classifier1_best = True
                 elif name == 'classifier2':
                     is_classifier2_best = True
-            
+
             logger.info(('* ({name})  Acc@1 {acc1:.3f}  HAcc {head_acc:.3f}  MAcc {med_acc:.3f}  TAcc {tail_acc:.3f}  '
                          '(Best Acc@1 {best_acc1:.3f}).').format(
                              name=name, acc1=acc1, acc5=acc5, head_acc=head_acc, med_acc=med_acc, tail_acc=tail_acc,
                              best_acc1=best_acc1[name]))
-    
+
     return is_classifier1_best
 
 
