@@ -40,6 +40,7 @@ class LT_Dataset(Dataset):
   def __getitem__(self, index):
     path = self.img_path[index]
     target = self.targets[index]
+    print('ham10000', path, target)
 
     with open(path, 'rb') as f:
       sample = Image.open(f).convert('RGB')
