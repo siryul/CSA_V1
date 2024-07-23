@@ -532,7 +532,6 @@ test/test/ISIC_0035064.jpg 2
 test/test/ISIC_0035065.jpg 1
 test/test/ISIC_0035066.jpg 1
 test/test/ISIC_0035067.jpg 1
-test/test/ISIC_0035068.jpg 1
 test/test/ISIC_0035070.jpg 3
 test/test/ISIC_0035071.jpg 1
 test/test/ISIC_0035072.jpg 5
