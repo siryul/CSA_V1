@@ -19,8 +19,8 @@ class LT_Dataset(Dataset):
     self.transform = transform
     with open(txt) as f:
       for line in f:
-        self.img_path.append(path.join(root, line.strip(' ')[0]))
-        self.targets.append(int(line.strip().split(' ')[1]))
+        self.img_path.append(path.join(root, line.strip()[0]))
+        self.targets.append(int(line.strip().split()[1]))
 
     cls_num_list_old = [np.sum(np.array(self.targets) == i) for i in range(self.num_classes)]
     sorted_classes = np.argsort(-np.array(cls_num_list_old))
