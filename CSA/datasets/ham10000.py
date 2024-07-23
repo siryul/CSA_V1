@@ -102,8 +102,10 @@ class HAM10000:
       normalize,
     ])
 
-    train_txt = "./data_txt/HAM10000_train.txt"
-    eval_txt = "./data_txt/HAM10000_test.txt"
+    curr_path = path.dirname(path.abspath(__file__))
+
+    train_txt = path.join(curr_path, "./data_txt/ham10000_train.txt")
+    eval_txt = path.join(curr_path, "./data_txt/ham10000_test.txt")
 
     train_dataset = LT_Dataset(root, train_txt, transform=transform_train)
     eval_dataset = LT_Dataset_Eval(root,
