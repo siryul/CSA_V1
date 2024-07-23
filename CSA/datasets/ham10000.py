@@ -102,10 +102,8 @@ class HAM10000:
       normalize,
     ])
 
-    # train_txt = "./data_txt/HAM10000_train.txt"
-    # eval_txt = "./data_txt/HAM10000_test.txt"
-    train_txt = "./datasets/data_txt/HAM10000_train.txt"
-    eval_txt = "./datasets/data_txt/HAM10000_test.txt"
+    train_txt = "./data_txt/HAM10000_train.txt"
+    eval_txt = "./data_txt/HAM10000_test.txt"
 
     train_dataset = LT_Dataset(root, train_txt, transform=transform_train)
     eval_dataset = LT_Dataset_Eval(root,
