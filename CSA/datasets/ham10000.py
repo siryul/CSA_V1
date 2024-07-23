@@ -87,7 +87,7 @@ class LT_Dataset_Eval(Dataset):
 class HAM10000:
 
   def __init__(self, distributed, root, batch_size=60, num_works=4, randaug=False):
-    normalize = transforms.Normalize(mean=[], std=[])
+    normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 
     transform_train = transforms.Compose([
       transforms.RandomResizedCrop(224),
