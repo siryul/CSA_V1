@@ -1,0 +1,52 @@
+name: 'ham10000'
+print_freq: 40
+workers: 4
+log_dir: 'logs'
+model_dir: 'ckps'
+
+
+# dataset & model setting
+dataset: 'ham10000'
+data_path: '/kaggle/input/ham10000'
+num_classes: 7
+imb_factor: null
+backbone: 'resnet10_fe'
+feat_size: 512
+resume: ''
+head_class_idx:
+  - 0
+  - 1
+med_class_idx:
+  - 1
+  - 3
+tail_class_idx:
+  - 3
+  - 7
+
+
+# distributed training
+deterministic: False
+distributed: False
+gpu: null
+world_size: -1
+rank: -1
+dist_url: 'tcp://224.66.41.62:23456'
+dist_backend: 'nccl'
+multiprocessing_distributed: False
+
+
+
+# Train
+mode: 'stage1'
+lr: 0.2
+batch_size: 128
+weight_decay: 2e-4
+num_epochs: 200
+momentum: 0.9
+cos: True
+mixup: False
+alpha: 1.0
+start_aug: 10
+end_aug: 3
+fit_thresh: 0.8
+bank_size: 128

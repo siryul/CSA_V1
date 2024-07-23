@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
 
+from CSA.datasets.ham10000 import HAM10000
 from datasets.cifar10 import CIFAR10_LT
 from datasets.cifar100 import CIFAR100_LT
 from datasets.imagenet import ImageNet_LT
@@ -124,6 +125,13 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
                                                       num_classes=config.num_classes)
 
   elif config.dataset == 'imagenet' or config.dataset == 'ina2018':
+    model = getattr(resnet, config.backbone)()
+    block = None
+    classifier1 = getattr(resnet, 'Classifier')(feat_in=config.feat_size,
+                                                num_classes=config.num_classes)
+    classifier2 = getattr(resnet, 'Classifier')(feat_in=config.feat_size,
+                                                num_classes=config.num_classes)
+  elif config.dataset == 'ham10000':
     model = getattr(resnet, config.backbone)()
     block = None
     classifier1 = getattr(resnet, 'Classifier')(feat_in=config.feat_size,
@@ -270,6 +278,12 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
                         batch_size=config.batch_size,
                         num_works=config.workers,
                         randaug=randaug)
+  elif config.dataset == 'ham10000':
+    dataset = HAM10000(config.distributed,
+                       root=config.data_path,
+                       batch_size=config.batch_size,
+                       num_works=config.workers,
+                       randaug=randaug)
 
   train_loader = dataset.train_instance
   balance_loader = dataset.train_balance
