@@ -1,0 +1,225 @@
+import os
+import numpy as np
+from PIL import Image
+
+import torch
+import torchvision
+import torchvision.datasets
+from torchvision import transforms
+from torch.utils.data import Dataset
+
+from .sampler import ClassAwareSampler
+from .gaussianblur import GaussianBlur
+
+
+class LT_Dataset(Dataset):
+  num_classes = 200
+
+  def __init__(self, root, txt, transform=None):
+    self.img_path = []
+    self.targets = []
+    self.transform = transform
+    with open(txt) as f:
+      for line in f:
+        self.img_path.append(os.path.join(root, line.split()[0]))
+        self.targets.append(int(line.split()[1]))
+
+    cls_num_list_old = [np.sum(np.array(self.targets) == i) for i in range(self.num_classes)]
+
+    # generate class_map: class index sort by num (descending)
+    sorted_classes = np.argsort(-np.array(cls_num_list_old))
+    self.class_map = [0 for i in range(self.num_classes)]
+    for i in range(self.num_classes):
+      self.class_map[sorted_classes[i]] = i
+
+    self.targets = np.array(self.class_map)[self.targets].tolist()
+
+    self.class_data = [[] for i in range(self.num_classes)]
+    for i in range(len(self.targets)):
+      j = self.targets[i]
+      self.class_data[j].append(i)
+
+    self.cls_num_list = [np.sum(np.array(self.targets) == i) for i in range(self.num_classes)]
+
+  def get_cls_num_list(self):
+    return self.cls_num_list
+
+  def __len__(self):
+    return len(self.targets)
+
+  def __getitem__(self, index):
+    path = self.img_path[index]
+    target = self.targets[index]
+
+    with open(path, 'rb') as f:
+      sample = Image.open(f).convert('RGB')
+    if self.transform is not None:
+      sample = self.transform(sample)
+    return sample, target
+
+
+class LT_Dataset_Eval(Dataset):
+  num_classes = 200
+
+  def __init__(self, root, txt, class_map, transform=None):
+    self.img_path = []
+    self.targets = []
+    self.transform = transform
+    self.class_map = class_map
+    with open(txt) as f:
+      for line in f:
+        self.img_path.append(os.path.join(root, line.split()[0]))
+        self.targets.append(int(line.split()[1]))
+
+    self.targets = np.array(self.class_map)[self.targets].tolist()
+
+  def __len__(self):
+    return len(self.targets)
+
+  def __getitem__(self, index):
+    path = self.img_path[index]
+    target = self.targets[index]
+
+    with open(path, 'rb') as f:
+      sample = Image.open(f).convert('RGB')
+    if self.transform is not None:
+      sample = self.transform(sample)
+    return sample, target
+
+
+class Tiny_ImageNet(LT_Dataset):
+
+  def __init__(self, root, txt, imb_type='exp', imb_factor=0.01, transform=None):
+    super().__init__(root, txt, transform)
+    np.random.seed(0)
+    img_num_list = self.get_img_num_per_cls(self.num_classes, imb_type='exp', imb_factor=0.01)
+    self.gen_imbalanced_data(img_num_list)
+
+  def get_img_num_per_cls(self, cls_num, imb_type, imb_factor):
+    img_max = len(self.class_data[0])
+    img_num_per_cls = []
+    if imb_type == 'exp':
+      for cls_idx in range(cls_num):
+        num = img_max * (imb_factor**(cls_idx / (cls_num-1.0)))
+        img_num_per_cls.append(int(num))
+    elif imb_type == 'step':
+      for cls_idx in range(cls_num // 2):
+        img_num_per_cls.append(img_max)
+      for cls_idx in range(cls_num // 2):
+        img_num_per_cls.append(int(img_max * imb_factor))
+    else:
+      img_num_per_cls.extend([img_max] * cls_num)
+    return img_num_per_cls
+
+  def gen_imbalanced_data(self, img_num_per_cls):
+    new_data = []
+    new_targets = []
+    targets_np = np.array(self.targets, dtype=np.int64)
+    classes = np.unique(targets_np)
+    # np.random.shuffle(classes)
+    self.num_per_cls_dict = dict()
+    for the_class, the_img_num in zip(classes, img_num_per_cls):
+      self.num_per_cls_dict[the_class] = the_img_num
+      idx = np.where(targets_np == the_class)[0]
+      np.random.shuffle(idx)
+      selec_idx = idx[:the_img_num]
+      new_data.extend([self.img_path[i] for i in selec_idx])
+      new_targets.extend([
+        the_class,
+      ] * the_img_num)
+    new_data = np.vstack(new_data)
+    self.data = new_data
+    self.targets = new_targets
+
+  def get_cls_num_list(self):
+    cls_num_list = []
+    for i in range(self.num_classes):
+      cls_num_list.append(self.num_per_cls_dict[i])
+    return cls_num_list
+
+
+class Tiny_ImageNet_LT(object):
+
+  def __init__(self, distributed, root="", batch_size=60, num_works=40, randaug=False):
+
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+    transform_train = transforms.Compose([
+      transforms.RandomResizedCrop(224),
+      transforms.RandomHorizontalFlip(),
+      transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0),
+      transforms.ToTensor(),
+      normalize,
+    ])
+
+    transform_test = transforms.Compose([
+      transforms.Resize(256),
+      transforms.CenterCrop(224),
+      transforms.ToTensor(),
+      normalize,
+    ])
+
+    if randaug:
+      transform_randaug = transforms.Compose([
+        transforms.RandomResizedCrop(size=224, scale=(0.2, 1.)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+        transforms.ToTensor(),
+        normalize,
+      ])
+
+      transform_raw = transform_train
+      transform_train = transforms.Lambda(
+        lambda x: [transform_raw(x), transform_randaug(x),
+                   transform_randaug(x)])
+
+    train_txt = "./datasets/data_txt/tiny_imagenet_train.txt"
+    eval_txt = "./datasets/data_txt/tiny_imagenet_test.txt"
+
+    train_dataset = LT_Dataset(root, train_txt, transform=transform_train)
+    eval_dataset = LT_Dataset_Eval(root,
+                                   eval_txt,
+                                   transform=transform_test,
+                                   class_map=train_dataset.class_map)
+
+    self.cls_num_list = train_dataset.cls_num_list
+
+    self.dist_sampler = torch.utils.data.distributed.DistributedSampler(
+      train_dataset) if distributed else None
+    self.train_instance = torch.utils.data.DataLoader(train_dataset,
+                                                      batch_size=batch_size,
+                                                      shuffle=True,
+                                                      num_workers=num_works,
+                                                      pin_memory=True,
+                                                      sampler=self.dist_sampler)
+
+    self.train_eval = torch.utils.data.DataLoader(train_dataset,
+                                                  batch_size=batch_size,
+                                                  shuffle=False,
+                                                  num_workers=num_works,
+                                                  pin_memory=True)
+
+    balance_sampler = ClassAwareSampler(train_dataset)
+    self.train_balance = torch.utils.data.DataLoader(train_dataset,
+                                                     batch_size=batch_size,
+                                                     shuffle=False,
+                                                     num_workers=num_works,
+                                                     pin_memory=True,
+                                                     sampler=balance_sampler)
+
+    self.eval = torch.utils.data.DataLoader(eval_dataset,
+                                            batch_size=batch_size,
+                                            shuffle=False,
+                                            num_workers=num_works,
+                                            pin_memory=True)
+
+
+if __name__ == "__main__":
+  dataset = Tiny_ImageNet(
+    '/Users/kangxingyu/Downloads/tiny-imagenet-200',
+    '/Volumes/T7/Graduation/CSA/CSA/datasets/data_txt/tiny_imagenet_train.txt')
+  cls_num_list = dataset.get_cls_num_list()
+  print(cls_num_list)
+  print(dataset.data)
