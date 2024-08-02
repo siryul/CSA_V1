@@ -10,8 +10,8 @@ dataset: 'tinyImageNet'
 data_path: '/kaggle/input/tiny-imagenet/tiny-imagenet-200/'
 num_classes: 200
 imb_factor: 0.01
-backbone: 'resnet32_fe'
-feat_size: 64
+backbone: 'resnet10_fe'
+feat_size: 512
 resume: ''
 head_class_idx:
   - 0
@@ -48,5 +48,5 @@ mixup: False
 alpha: 1.0
 start_aug: 10
 end_aug: 3
-fit_thresh: 0.8
+fit_thresh: 0.7
 bank_size: 128
