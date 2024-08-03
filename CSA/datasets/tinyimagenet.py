@@ -140,7 +140,13 @@ class Tiny_ImageNet(LT_Dataset):
 
 class Tiny_ImageNet_LT(object):
 
-  def __init__(self, distributed, root="", batch_size=60, num_works=40, randaug=False):
+  def __init__(self,
+               distributed,
+               root="",
+               batch_size=60,
+               num_works=40,
+               randaug=False,
+               imb_factor=0.1):
 
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
@@ -178,7 +184,7 @@ class Tiny_ImageNet_LT(object):
     train_txt = "./datasets/data_txt/tiny_imagenet_train.txt"
     eval_txt = "./datasets/data_txt/tiny_imagenet_test.txt"
 
-    train_dataset = LT_Dataset(root, train_txt, transform=transform_train)
+    train_dataset = Tiny_ImageNet(root, train_txt, transform=transform_train, imb_factor=imb_factor)
     eval_dataset = LT_Dataset_Eval(root,
                                    eval_txt,
                                    transform=transform_test,

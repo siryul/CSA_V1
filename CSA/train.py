@@ -290,7 +290,8 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
                                root=config.data_path,
                                batch_size=config.batch_size,
                                num_works=config.workers,
-                               randaug=randaug)
+                               randaug=randaug,
+                               imb_factor=config.imb_factor)
 
   train_loader = dataset.train_instance
   balance_loader = dataset.train_balance
