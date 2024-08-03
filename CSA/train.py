@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
 
+from CSA.datasets.tinyimagenet import Tiny_ImageNet_LT
 from datasets.ham10000 import HAM10000
 from datasets.cifar10 import CIFAR10_LT
 from datasets.cifar100 import CIFAR100_LT
@@ -284,6 +285,12 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
                        batch_size=config.batch_size,
                        num_works=config.workers,
                        randaug=randaug)
+  elif config.dataset == 'tinyImageNet':
+    dataset = Tiny_ImageNet_LT(config.distributed,
+                               root=config.data_path,
+                               batch_size=config.batch_size,
+                               num_works=config.workers,
+                               randaug=randaug)
 
   train_loader = dataset.train_instance
   balance_loader = dataset.train_balance
