@@ -22,7 +22,7 @@ import torch.nn.functional as F
 from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
 
-from CSA.datasets.tinyimagenet import Tiny_ImageNet_LT
+from datasets.tinyimagenet import Tiny_ImageNet_LT
 from datasets.ham10000 import HAM10000
 from datasets.cifar10 import CIFAR10_LT
 from datasets.cifar100 import CIFAR100_LT
