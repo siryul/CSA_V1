@@ -124,7 +124,7 @@ def main_worker(gpu, ngpus_per_node, config, logger, model_dir):
     classifier2 = getattr(resnet_cifar, 'Classifier')(feat_in=config.feat_size,
                                                       num_classes=config.num_classes)
 
-  elif config.dataset == 'imagenet' or config.dataset == 'ina2018':
+  elif config.dataset == 'imagenet' or config.dataset == 'ina2018' or config.dataset == 'tinyImageNet':
     model = getattr(resnet, config.backbone)()
     block = None
     classifier1 = getattr(resnet, 'Classifier')(feat_in=config.feat_size,
