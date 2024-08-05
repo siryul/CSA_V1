@@ -59,37 +59,38 @@ _C.bank_size = 128
 _C.a = 0.0
 _C.b = 1.0
 _C.balance_ratio = None
+_C.lam_type = 'uniform'
+
 
 def update_config(cfg, args):
-    cfg.defrost()
-    
-    cfg.merge_from_file(args.cfg)
-    cfg.merge_from_list(args.opts)
+  cfg.defrost()
 
-    # cfg.freeze()
+  cfg.merge_from_file(args.cfg)
+  cfg.merge_from_list(args.opts)
 
-def create_logger(cfg, cfg_name):    
-    time_str = time.strftime('%Y%m%d%H%M%S')
+  # cfg.freeze()
 
-    cfg_name = os.path.basename(cfg_name).split('.')[0]
 
-    log_dir = Path("saved")  / (cfg_name + '_' + time_str) / Path(cfg.log_dir)
-    print('=> creating {}'.format(log_dir))
-    log_dir.mkdir(parents=True, exist_ok=True)
+def create_logger(cfg, cfg_name):
+  time_str = time.strftime('%Y%m%d%H%M%S')
 
-    
-    log_file = '{}.txt'.format(cfg_name)
-    final_log_file = log_dir / log_file
-    head = '%(asctime)-15s %(message)s'
-    logging.basicConfig(filename=str(final_log_file),
-                        format=head)
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    console = logging.StreamHandler()
-    logging.getLogger('').addHandler(console)
+  cfg_name = os.path.basename(cfg_name).split('.')[0]
 
-    model_dir =  Path("saved") / (cfg_name + '_' + time_str) / Path(cfg.model_dir)
-    print('=> creating {}'.format(model_dir))
-    model_dir.mkdir(parents=True, exist_ok=True)
+  log_dir = Path("saved") / (cfg_name+'_'+time_str) / Path(cfg.log_dir)
+  print('=> creating {}'.format(log_dir))
+  log_dir.mkdir(parents=True, exist_ok=True)
 
-    return logger, str(model_dir)
+  log_file = '{}.txt'.format(cfg_name)
+  final_log_file = log_dir / log_file
+  head = '%(asctime)-15s %(message)s'
+  logging.basicConfig(filename=str(final_log_file), format=head)
+  logger = logging.getLogger()
+  logger.setLevel(logging.INFO)
+  console = logging.StreamHandler()
+  logging.getLogger('').addHandler(console)
+
+  model_dir = Path("saved") / (cfg_name+'_'+time_str) / Path(cfg.model_dir)
+  print('=> creating {}'.format(model_dir))
+  model_dir.mkdir(parents=True, exist_ok=True)
+
+  return logger, str(model_dir)

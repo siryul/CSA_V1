@@ -470,9 +470,13 @@ def train(train_loader,
         aug_images, aug_masks = back_images[perm][:input1.shape[0]], back_masks[perm][:input1.
                                                                                       shape[0]]
                                                                                                # generate mixed sample
-        lam = np.random.uniform(config.a, config.b)
+
+        if config.lam_type == 'uniform':
+          lam = np.random.uniform(config.a, config.b)
+        else:
+          lam = np.random.beta(config.a, config.b)
         input2 = lam*aug_masks*aug_images + input2 * (1. - lam*aug_masks)
-                                                                                               # compute output
+        # compute output
         if config.dataset == 'places':
           with torch.no_grad():
             feat2_a = model(input2)
@@ -484,12 +488,12 @@ def train(train_loader,
         loss2 = F.cross_entropy(output2, target2)
       else:
         loss2 = 0
-                                                                                               # with torch.no_grad():
-                                                                                               #     feat2 = model(input2)
-                                                                                               #     if config.dataset == 'places':
-                                                                                               #         feat2 = block(feat2)
-                                                                                               # output2 = classifier2(feat2.detach())
-                                                                                               # loss2 = F.cross_entropy(output2, target2)
+        # with torch.no_grad():
+        #     feat2 = model(input2)
+        #     if config.dataset == 'places':
+        #         feat2 = block(feat2)
+        # output2 = classifier2(feat2.detach())
+        # loss2 = F.cross_entropy(output2, target2)
 
       if config.loss_type == 'BCL':
         inputs = torch.cat([input1, input1_r1, input1_r2], dim=0)
