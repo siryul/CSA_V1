@@ -56,10 +56,10 @@ _C.start_aug = 10
 _C.end_aug = 3
 _C.fit_thresh = 0.8
 _C.bank_size = 128
-_C.a = 0.0
-_C.b = 1.0
+_C.a = 4.0
+_C.b = 4.0
 _C.balance_ratio = None
-_C.lam_type = 'uniform'
+_C.lam_type = 'beta'
 
 
 def update_config(cfg, args):
