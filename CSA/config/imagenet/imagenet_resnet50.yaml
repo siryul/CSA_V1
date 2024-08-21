@@ -7,7 +7,7 @@ model_dir: 'ckps'
 
 # dataset & model setting
 dataset: 'imagenet'
-data_path: 'Path/to/Data/ImageNet/'
+data_path: '/kaggle/input/imagenet2012'
 num_classes: 1000
 imb_factor: null
 backbone: 'resnet50_fe'
