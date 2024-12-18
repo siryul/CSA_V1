@@ -43,7 +43,7 @@ mode: 'stage1'
 lr: 0.2
 batch_size: 256
 weight_decay: 5e-4
-num_epochs: 90
+num_epochs: 100
 momentum: 0.9
 cos: True
 mixup: False
