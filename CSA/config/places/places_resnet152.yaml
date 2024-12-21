@@ -4,7 +4,6 @@ workers: 10
 log_dir: 'logs'
 model_dir: 'ckps'
 
-
 # dataset & model setting
 dataset: 'places'
 data_path: '/kaggle/input/places-lt'
@@ -15,7 +14,7 @@ feat_size: 2048
 bottle_size: 512
 hidden_size: 1024
 head_size: 1024
-resume: ''
+resume: '/kaggle/input/places-resnet152/places_resnet152_20241219071616/ckps/current.pth.tar'
 head_class_idx:
   - 0
   - 131
@@ -26,7 +25,6 @@ tail_class_idx:
   - 288
   - 365
 
-
 # distributed training
 deterministic: False
 distributed: False
@@ -36,7 +34,6 @@ rank: -1
 dist_url: 'tcp://224.66.41.62:23456'
 dist_backend: 'nccl'
 multiprocessing_distributed: False
-
 
 # Train
 mode: 'stage1'
@@ -52,4 +49,3 @@ start_aug: 10
 end_aug: 3
 fit_thresh: 0.8
 bank_size: 256
-
